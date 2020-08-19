@@ -1,8 +1,8 @@
-from sensors.Sensor import Sensor
+from wpiio.I2CDevice import I2CDevice
 import time
 
 
-class BME280(Sensor):
+class BME280(I2CDevice):
     DEFAULT_DEVICE_I2C_ADDRESS = 0x76
 
     REGISTER_HUM_LSB = 0xFE
@@ -144,7 +144,7 @@ class BME280(Sensor):
         self.read_calibration()
         self.write_config()
 
-    def get_chip_id(self):
+    def get_chip_id(self) -> str or None:
         return self.read_register(BME280.REGISTER_ID, 1)[0]
 
     def is_chip_id_valid(self) -> bool:
