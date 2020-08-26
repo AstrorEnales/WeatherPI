@@ -2,7 +2,7 @@
 
 import tempfile
 import shutil
-import wpiio
+import io
 import csv
 import time
 from typing import Dict
@@ -30,10 +30,15 @@ def light_sensor():
 def temperature_sensor():
     bme280_sensor = BME280()
     print("BME280 ID: %s, valid: %s" % (hex(bme280_sensor.chip_id), bme280_sensor.is_chip_id_valid()))
-    bme280_sensor.start(BME280.CONTROL_MODE_FORCED)
-    print("Temperature : ", bme280_sensor.temperature, "°C")
-    print("Pressure : ", bme280_sensor.pressure, "hPa")
-    print("Humidity : ", bme280_sensor.humidity, "%")
+    bme280_sensor.start(BME280.CONTROL_MODE_NORMAL)
+    try:
+        while True:
+            time.sleep(1)
+            print("Temperature : %.4f°C, Pressure : %.4fhPa, Humidity : %.4f%%" % (
+                bme280_sensor.temperature, bme280_sensor.pressure, bme280_sensor.humidity))
+    except KeyboardInterrupt:
+        pass
+    bme280_sensor.stop()
 
 
 def compass_sensor(config: Dict):
@@ -64,8 +69,8 @@ def compass_sensor(config: Dict):
         pass
     gy271_sensor.stop()
     print("GY271 calibration range [%s, %s, %s, %s] offset [%s, %s]" % (
-        min_x, min_y, max_x, max_y, (max_x - min_x) * 0.5, (max_y - min_y) * 0.5))
-    with wpiio.open("/home/pi/calibration.csv", "w", encoding="utf-8") as f:
+        min_x, min_y, max_x, max_y, (max_x + min_x) * 0.5, (max_y + min_y) * 0.5))
+    with io.open("/home/pi/calibration.csv", "w", encoding="utf-8") as f:
         writer = csv.writer(f, delimiter=",", quotechar="\"")
         writer.writerow(["x", "y", "z"])
         for point in points:
@@ -73,18 +78,19 @@ def compass_sensor(config: Dict):
 
 
 if __name__ == "__main__":
-    # config = {
-    #    "location": {
-    #        "lat": 52.038264,
-    #        "lon": 8.4764692
-    #    },
-    #    "compass": {
-    #        "calibration_offset": [519.0, 676.5]
-    #    }
-    # }
+    config = {
+       "location": {
+           "lat": 52.038264,
+           "lon": 8.4764692
+       },
+       "compass": {
+           "calibration_offset": [803.0, 422.5],
+           "calibration_norm_factor": [1606, 263 + 1108]
+       }
+    }
     # light_sensor()
     # temperature_sensor()
-    # compass_sensor(config)
+    compass_sensor(config)
     # camera_sensor = Camera()
     # target_path = tempfile.mkdtemp()
     # url = ""
@@ -108,7 +114,7 @@ if __name__ == "__main__":
     # while True:
     #    print("Rain:", rain_detector.rain_detected)
     #    time.sleep(1)
-    #gpio_extender = MCP23017(0x24)
-    #while True:
+    # gpio_extender = MCP23017(0x24)
+    # while True:
     #    print("GPIO:", format(gpio_extender.read_ports(), '016b'))
     #    time.sleep(0.1)

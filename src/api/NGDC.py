@@ -1,4 +1,4 @@
-import wpiio
+import io
 import os
 import math
 import json
@@ -24,7 +24,7 @@ def get_magnetic_declination(lat: float, lon: float) -> float:
     if last_loaded_cache is not None:
         data = last_loaded_cache
     elif os.path.isfile(cache_file_path):
-        with wpiio.open(cache_file_path, "r", encoding="utf-8") as f:
+        with io.open(cache_file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
             last_loaded_cache = data
     if data is not None:
@@ -41,7 +41,7 @@ def get_magnetic_declination(lat: float, lon: float) -> float:
         with urllib.request.urlopen("%s?%s" % (API_URL, params)) as f:
             data = json.load(f)
             last_loaded_cache = data
-        with wpiio.open(cache_file_path, "w", encoding="utf-8") as f:
+        with io.open(cache_file_path, "w", encoding="utf-8") as f:
             json.dump(data, f)
         print("\tNew magnetic declination is %s" % data["result"][0]["declination"])
     declination = data["result"][0]["declination"]

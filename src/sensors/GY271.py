@@ -60,6 +60,7 @@ class GY271(I2CDevice):
         self.latitude = config["location"]["lat"]
         self.longitude = config["location"]["lon"]
         self.calibration_offset = config["compass"]["calibration_offset"]
+        self.calibration_norm_factor = config["compass"]["calibration_norm_factor"]
         self.last_x = 0
         self.last_y = 0
         self.last_z = 0
@@ -83,7 +84,7 @@ class GY271(I2CDevice):
             self.write_config()
             self.write_control_modes()
             self.started = True
-            self.last_measure_time = time.clock()
+            self.last_measure_time = self.get_now()
             self.wait_before_measure()
             self.read()
 
@@ -110,6 +111,8 @@ class GY271(I2CDevice):
 
         self.last_x -= self.calibration_offset[0]
         self.last_y -= self.calibration_offset[1]
+        self.last_x /= self.calibration_norm_factor[0]
+        self.last_y /= self.calibration_norm_factor[1]
 
         declination_angle = NGDC.get_magnetic_declination(self.latitude, self.longitude) * math.pi / 180.0
         self.last_heading = math.atan2(self.last_y, self.last_x) + declination_angle
@@ -131,8 +134,8 @@ class GY271(I2CDevice):
         return self.last_x, self.last_y, self.last_z, self.last_temperature
 
     def read_if_needed(self):
-        if self.started and (time.clock() - self.last_measure_time) > self.get_interval_time():
-            self.last_measure_time = time.clock()
+        if self.started and (self.get_now() - self.last_measure_time) > self.get_interval_time():
+            self.last_measure_time = self.get_now()
             self.read()
 
     def get_interval_time(self):

@@ -142,6 +142,7 @@ class BME280(I2CDevice):
         self.last_measure_time = 0
         self.chip_id = self.get_chip_id()
         self.read_calibration()
+        time.sleep(0.002)
         self.write_config()
 
     def get_chip_id(self) -> str or None:
@@ -188,13 +189,16 @@ class BME280(I2CDevice):
             self.write_control_modes()
             if mode == BME280.CONTROL_MODE_NORMAL:
                 self.started = True
-            self.last_measure_time = time.clock()
+            self.last_measure_time = self.get_now()
             self.wait_before_measure()
             self.read()
+            print('[BME280] Max measure time: %s ms' % (self.get_max_measure_time() * 1000))
+            print('[BME280] Interval time: %s ms' % (self.get_interval_time() * 1000))
 
     def write_control_modes(self):
         control_modes = self.oversample_temperature << 5 | self.oversample_pressure << 2 | self.mode
         self.write_register(BME280.REGISTER_CTRL_HUM, self.oversample_humidity)
+        time.sleep(0.002)
         self.write_register(BME280.REGISTER_CTRL_MEAS, control_modes)
 
     def wait_before_measure(self):
@@ -228,7 +232,7 @@ class BME280(I2CDevice):
         raw_humidity = (data[6] << 8) | data[7]
         return raw_pressure, raw_temperature, raw_humidity
 
-    def refine_temperature(self, raw_temperature: int):
+    def refine_temperature(self, raw_temperature: int) -> (float, int):
         var1 = (((raw_temperature >> 3) - (self.dig_T1 << 1)) * self.dig_T2) >> 11
         var3 = (raw_temperature >> 4) - self.dig_T1
         var2 = (((var3 * var3) >> 12) * self.dig_T3) >> 14
@@ -236,7 +240,7 @@ class BME280(I2CDevice):
         temperature = float(((t_fine * 5) + 128) >> 8)
         return temperature / 100.0, t_fine
 
-    def refine_pressure(self, raw_pressure: int, t_fine: int):
+    def refine_pressure(self, raw_pressure: int, t_fine: int) -> float:
         # Refine pressure and adjust for temperature
         var1 = t_fine / 2.0 - 64000.0
         var2 = var1 * var1 * self.dig_P6 / 32768.0
@@ -254,7 +258,7 @@ class BME280(I2CDevice):
             pressure = pressure + (var1 + var2 + self.dig_P7) / 16.0
         return pressure / 100.0
 
-    def refine_humidity(self, raw_humidity: int, t_fine: int):
+    def refine_humidity(self, raw_humidity: int, t_fine: int) -> float:
         humidity = t_fine - 76800.0
         var1 = self.dig_H4 * 64.0 + self.dig_H5 / 16384.0 * humidity
         var2 = 1.0 + self.dig_H3 / 67108864.0 * humidity
@@ -264,22 +268,22 @@ class BME280(I2CDevice):
         return min(100.0, max(0.0, humidity))
 
     @property
-    def temperature(self):
+    def temperature(self) -> float:
         self.read_if_needed()
         return self.last_temperature
 
     def read_if_needed(self):
         if self.mode == BME280.CONTROL_MODE_NORMAL and self.started and (
-                time.clock() - self.last_measure_time) > self.get_interval_time():
-            self.last_measure_time = time.clock()
+                self.get_now() - self.last_measure_time) > self.get_interval_time():
+            self.last_measure_time = self.get_now()
             self.read()
 
     @property
-    def pressure(self):
+    def pressure(self) -> float:
         self.read_if_needed()
         return self.last_pressure
 
     @property
-    def humidity(self):
+    def humidity(self) -> float:
         self.read_if_needed()
         return self.last_humidity
