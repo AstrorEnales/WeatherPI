@@ -2,11 +2,9 @@ from wpiio.I2CDevice import I2CDevice
 import time
 
 
-class BME280(I2CDevice):
+class BMP280(I2CDevice):
     DEFAULT_DEVICE_I2C_ADDRESS = 0x76
 
-    REGISTER_HUM_LSB = 0xFE
-    REGISTER_HUM_MSB = 0xFD
     REGISTER_TEMP_XLSB = 0xFC
     REGISTER_TEMP_LSB = 0xFB
     REGISTER_TEMP_MSB = 0xFA
@@ -16,23 +14,6 @@ class BME280(I2CDevice):
     REGISTER_CONFIG = 0xF5
     REGISTER_CTRL_MEAS = 0xF4
     REGISTER_STATUS = 0xF3
-    REGISTER_CTRL_HUM = 0xF2
-    REGISTER_CALIBRATION_26 = 0xE1
-    REGISTER_CALIBRATION_27 = 0xE2
-    REGISTER_CALIBRATION_28 = 0xE3
-    REGISTER_CALIBRATION_29 = 0xE4
-    REGISTER_CALIBRATION_30 = 0xE5
-    REGISTER_CALIBRATION_31 = 0xE6
-    REGISTER_CALIBRATION_32 = 0xE7
-    REGISTER_CALIBRATION_33 = 0xE8
-    REGISTER_CALIBRATION_34 = 0xE9
-    REGISTER_CALIBRATION_35 = 0xEA
-    REGISTER_CALIBRATION_36 = 0xEB
-    REGISTER_CALIBRATION_37 = 0xEC
-    REGISTER_CALIBRATION_38 = 0xED
-    REGISTER_CALIBRATION_39 = 0xEE
-    REGISTER_CALIBRATION_40 = 0xEF
-    REGISTER_CALIBRATION_41 = 0xF0
     REGISTER_RESET = 0xE0
     REGISTER_ID = 0xD0
     REGISTER_CALIBRATION_00 = 0x88
@@ -75,8 +56,8 @@ class BME280(I2CDevice):
     CONFIG_STANDBY_250 = 3
     CONFIG_STANDBY_500 = 4
     CONFIG_STANDBY_1000 = 5
-    CONFIG_STANDBY_10 = 6
-    CONFIG_STANDBY_20 = 7
+    CONFIG_STANDBY_2000 = 6
+    CONFIG_STANDBY_4000 = 7
 
     CONFIG_FILTER_OFF = 0
     CONFIG_FILTER_2 = 1
@@ -95,7 +76,7 @@ class BME280(I2CDevice):
     CONTROL_MODE_NORMAL = 3
 
     def __init__(self):
-        super().__init__(BME280.DEFAULT_DEVICE_I2C_ADDRESS)
+        super().__init__(BMP280.DEFAULT_DEVICE_I2C_ADDRESS)
         self.config_standby_sec_lookup = {
             0: 0.5 / 1000.0,  # CONFIG_STANDBY_0_5
             1: 62.5 / 1000.0,  # CONFIG_STANDBY_62_5
@@ -103,16 +84,15 @@ class BME280(I2CDevice):
             3: 250.0 / 1000.0,  # CONFIG_STANDBY_250
             4: 500.0 / 1000.0,  # CONFIG_STANDBY_500
             5: 1000.0 / 1000.0,  # CONFIG_STANDBY_1000
-            6: 10.0 / 1000.0,  # CONFIG_STANDBY_10
-            7: 20.0 / 1000.0  # CONFIG_STANDBY_20
+            6: 2000.0 / 1000.0,  # CONFIG_STANDBY_2000
+            7: 4000.0 / 1000.0  # CONFIG_STANDBY_4000
         }
-        self.config_standby = BME280.CONFIG_STANDBY_0_5
-        self.config_filter = BME280.CONFIG_FILTER_2
-        self.config_spi = BME280.CONFIG_SPI_OFF
-        self.mode = BME280.CONTROL_MODE_SLEEP
-        self.oversample_temperature = BME280.OVERSAMPLE_X2
-        self.oversample_pressure = BME280.OVERSAMPLE_X2
-        self.oversample_humidity = BME280.OVERSAMPLE_X2
+        self.config_standby = BMP280.CONFIG_STANDBY_0_5
+        self.config_filter = BMP280.CONFIG_FILTER_2
+        self.config_spi = BMP280.CONFIG_SPI_OFF
+        self.mode = BMP280.CONTROL_MODE_SLEEP
+        self.oversample_temperature = BMP280.OVERSAMPLE_X2
+        self.oversample_pressure = BMP280.OVERSAMPLE_X2
         self.dig_T1 = 0
         self.dig_T2 = 0
         self.dig_T3 = 0
@@ -126,18 +106,8 @@ class BME280(I2CDevice):
         self.dig_P8 = 0
         self.dig_P9 = 0
         self.dig_H1 = 0
-        self.dig_H2 = 0
-        self.dig_H3 = 0
-        self.dig_H4 = 0
-        self.dig_H4 = 0
-        self.dig_H4 = 0
-        self.dig_H5 = 0
-        self.dig_H5 = 0
-        self.dig_H5 = 0
-        self.dig_H6 = 0
         self.last_temperature = 0.0
         self.last_pressure = 0.0
-        self.last_humidity = 0.0
         self.started = False
         self.last_measure_time = 0
         self.chip_id = self.get_chip_id()
@@ -146,16 +116,15 @@ class BME280(I2CDevice):
         self.write_config()
 
     def get_chip_id(self) -> str or None:
-        return self.read_register(BME280.REGISTER_ID, 1)[0]
+        return self.read_register(BMP280.REGISTER_ID, 1)[0]
 
     def is_chip_id_valid(self) -> bool:
-        return self.chip_id == 0x60
+        return self.chip_id == 0x58
 
     def read_calibration(self):
         # Read blocks of calibration data from EEPROM
-        cal1 = self.read_register(BME280.REGISTER_CALIBRATION_00, 24)
-        cal2 = self.read_register(BME280.REGISTER_CALIBRATION_25, 1)
-        cal3 = self.read_register(BME280.REGISTER_CALIBRATION_26, 7)
+        cal1 = self.read_register(BMP280.REGISTER_CALIBRATION_00, 24)
+        cal2 = self.read_register(BMP280.REGISTER_CALIBRATION_25, 1)
         self.dig_T1 = self.get_ushort(cal1, 0)
         self.dig_T2 = self.get_short(cal1, 2)
         self.dig_T3 = self.get_short(cal1, 4)
@@ -169,25 +138,16 @@ class BME280(I2CDevice):
         self.dig_P8 = self.get_short(cal1, 20)
         self.dig_P9 = self.get_short(cal1, 22)
         self.dig_H1 = self.get_uchar(cal2, 0)
-        self.dig_H2 = self.get_short(cal3, 0)
-        self.dig_H3 = self.get_uchar(cal3, 2)
-        self.dig_H4 = self.get_char(cal3, 3)
-        self.dig_H4 = (self.dig_H4 << 24) >> 20
-        self.dig_H4 = self.dig_H4 | (self.get_char(cal3, 4) & 0x0F)
-        self.dig_H5 = self.get_char(cal3, 5)
-        self.dig_H5 = (self.dig_H5 << 24) >> 20
-        self.dig_H5 = self.dig_H5 | (self.get_uchar(cal3, 4) >> 4 & 0x0F)
-        self.dig_H6 = self.get_char(cal3, 6)
 
     def write_config(self):
         config = self.config_standby << 5 | self.config_filter << 2 | self.config_spi
-        self.write_register(BME280.REGISTER_CONFIG, config)
+        self.write_register(BMP280.REGISTER_CONFIG, config)
 
     def start(self, mode: int):
-        if not self.started and mode != BME280.CONTROL_MODE_SLEEP:
+        if not self.started and mode != BMP280.CONTROL_MODE_SLEEP:
             self.mode = mode
             self.write_control_modes()
-            if mode == BME280.CONTROL_MODE_NORMAL:
+            if mode == BMP280.CONTROL_MODE_NORMAL:
                 self.started = True
             self.last_measure_time = self.get_now()
             self.wait_before_measure()
@@ -196,41 +156,37 @@ class BME280(I2CDevice):
             print('[BME280] Interval time: %s ms' % (self.get_interval_time() * 1000))
 
     def write_control_modes(self):
-        control_modes = self.oversample_temperature << 5 | self.oversample_pressure << 2 | self.mode
-        self.write_register(BME280.REGISTER_CTRL_HUM, self.oversample_humidity)
         time.sleep(0.002)
-        self.write_register(BME280.REGISTER_CTRL_MEAS, control_modes)
+        control_modes = self.oversample_temperature << 5 | self.oversample_pressure << 2 | self.mode
+        self.write_register(BMP280.REGISTER_CTRL_MEAS, control_modes)
 
     def wait_before_measure(self):
         time.sleep(self.get_max_measure_time())
 
     def get_max_measure_time(self):
         # measure time in ms (Appendix B: Measurement time and current calculation)
-        return (1.25 + (2.3 * self.oversample_temperature) + ((2.3 * self.oversample_pressure) + 0.575) + (
-                (2.3 * self.oversample_humidity) + 0.575)) / 1000.0
+        return (1.25 + (2.3 * self.oversample_temperature) + ((2.3 * self.oversample_pressure) + 0.575)) / 1000.0
 
     def get_interval_time(self):
         return self.get_max_measure_time() + self.config_standby_sec_lookup[self.config_standby]
 
     def stop(self):
-        if self.mode != BME280.CONTROL_MODE_SLEEP:
-            self.mode = BME280.CONTROL_MODE_SLEEP
+        if self.mode != BMP280.CONTROL_MODE_SLEEP:
+            self.mode = BMP280.CONTROL_MODE_SLEEP
             self.write_control_modes()
             self.started = False
 
     def read(self):
-        raw_pressure, raw_temperature, raw_humidity = self.read_raw_values()
+        raw_pressure, raw_temperature = self.read_raw_values()
         self.last_temperature, t_fine = self.refine_temperature(raw_temperature)
         self.last_pressure = self.refine_pressure(raw_pressure, t_fine)
-        self.last_humidity = self.refine_humidity(raw_humidity, t_fine)
 
     def read_raw_values(self) -> (int, int, int):
-        # Read 8 bytes starting at pressure MSB up to humidity LSB
-        data = self.read_register(BME280.REGISTER_PRESS_MSB, 8)
+        # Read 6 bytes starting at pressure MSB up to humidity LSB
+        data = self.read_register(BMP280.REGISTER_PRESS_MSB, 6)
         raw_pressure = (data[0] << 12) | (data[1] << 4) | (data[2] >> 4)
         raw_temperature = (data[3] << 12) | (data[4] << 4) | (data[5] >> 4)
-        raw_humidity = (data[6] << 8) | data[7]
-        return raw_pressure, raw_temperature, raw_humidity
+        return raw_pressure, raw_temperature
 
     def refine_temperature(self, raw_temperature: int) -> (float, int):
         var1 = (((raw_temperature >> 3) - (self.dig_T1 << 1)) * self.dig_T2) >> 11
@@ -258,22 +214,13 @@ class BME280(I2CDevice):
             pressure = pressure + (var1 + var2 + self.dig_P7) / 16.0
         return pressure / 100.0
 
-    def refine_humidity(self, raw_humidity: int, t_fine: int) -> float:
-        humidity = t_fine - 76800.0
-        var1 = self.dig_H4 * 64.0 + self.dig_H5 / 16384.0 * humidity
-        var2 = 1.0 + self.dig_H3 / 67108864.0 * humidity
-        var3 = 1.0 + self.dig_H6 / 67108864.0 * humidity * var2
-        humidity = (raw_humidity - var1) * (self.dig_H2 / 65536.0 * var3)
-        humidity = humidity * (1.0 - self.dig_H1 * humidity / 524288.0)
-        return min(100.0, max(0.0, humidity))
-
     @property
     def temperature(self) -> float:
         self.read_if_needed()
         return self.last_temperature
 
     def read_if_needed(self):
-        if self.mode == BME280.CONTROL_MODE_NORMAL and self.started and (
+        if self.mode == BMP280.CONTROL_MODE_NORMAL and self.started and (
                 self.get_now() - self.last_measure_time) > self.get_interval_time():
             self.last_measure_time = self.get_now()
             self.read()
@@ -282,8 +229,3 @@ class BME280(I2CDevice):
     def pressure(self) -> float:
         self.read_if_needed()
         return self.last_pressure
-
-    @property
-    def humidity(self) -> float:
-        self.read_if_needed()
-        return self.last_humidity

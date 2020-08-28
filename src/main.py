@@ -89,8 +89,8 @@ if __name__ == "__main__":
        }
     }
     # light_sensor()
-    # temperature_sensor()
-    compass_sensor(config)
+    temperature_sensor()
+    # compass_sensor(config)
     # camera_sensor = Camera()
     # target_path = tempfile.mkdtemp()
     # url = ""
