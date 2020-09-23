@@ -8,6 +8,7 @@ import time
 from typing import Dict
 import requests
 
+from utils.PressureUtils import adjust_to_mean_sea_level
 from wpiio.MCP23017 import MCP23017
 from sensors.BME280 import BME280
 from sensors.DigitalOnOffSensor import DigitalOnOffSensor
@@ -21,21 +22,27 @@ from utils import CompassUtils
 def light_sensor():
     si1145_sensor = SI1145()
     print("SI1145 ID: %s, valid: %s" % (hex(si1145_sensor.chip_id), si1145_sensor.is_chip_id_valid()))
-    time.sleep(1)
-    print("SI1145 UV index: %s" % (si1145_sensor.get_aux_data() * 0.01))
-    print("SI1145 IR: %s" % (si1145_sensor.get_als_ir_data()))
-    print("SI1145 visible light: %s" % (si1145_sensor.get_als_vis_data()))
+    try:
+        while True:
+            time.sleep(1)
+            print("SI1145 UV index: %s" % (si1145_sensor.get_aux_data() * 0.01))
+            print("SI1145 IR: %s" % (si1145_sensor.get_als_ir_data()))
+            print("SI1145 visible light: %s" % (si1145_sensor.get_als_vis_data()))
+    except KeyboardInterrupt:
+        pass
 
 
-def temperature_sensor():
+def temperature_sensor(config: Dict):
     bme280_sensor = BME280()
     print("BME280 ID: %s, valid: %s" % (hex(bme280_sensor.chip_id), bme280_sensor.is_chip_id_valid()))
     bme280_sensor.start(BME280.CONTROL_MODE_NORMAL)
     try:
         while True:
             time.sleep(1)
-            print("Temperature : %.4f°C, Pressure : %.4fhPa, Humidity : %.4f%%" % (
-                bme280_sensor.temperature, bme280_sensor.pressure, bme280_sensor.humidity))
+            pressure_mean_sea_level = adjust_to_mean_sea_level(bme280_sensor.pressure, config["location"]["height"],
+                                                               config["location"]["lat"], bme280_sensor.temperature)
+            print("Temperature : %.4f°C, Pressure : %.4fhPa (%.4fhPa mean sea level), Humidity : %.4f%%" % (
+                bme280_sensor.temperature, bme280_sensor.pressure, pressure_mean_sea_level, bme280_sensor.humidity))
     except KeyboardInterrupt:
         pass
     bme280_sensor.stop()
@@ -81,15 +88,16 @@ if __name__ == "__main__":
     config = {
        "location": {
            "lat": 52.038264,
-           "lon": 8.4764692
+           "lon": 8.4764692,
+           "height": 111
        },
        "compass": {
            "calibration_offset": [803.0, 422.5],
            "calibration_norm_factor": [1606, 263 + 1108]
        }
     }
-    # light_sensor()
-    temperature_sensor()
+    light_sensor()
+    # temperature_sensor(config)
     # compass_sensor(config)
     # camera_sensor = Camera()
     # target_path = tempfile.mkdtemp()
